@@ -6,9 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize DOM elements
     const elements = {
-        registerPanel: document.getElementById('registerPanel'),
-        loginPanel: document.getElementById('loginPanel'),
-        dashboard: document.getElementById('dashboard'),
+        registerPanel: document.getElementById('registerPanel') || console.error('Register panel not found'),
+        loginPanel: document.getElementById('loginPanel') || console.error('Login panel not found'),
+        dashboard: document.getElementById('dashboard') || console.error('Dashboard not found'),
         showLoginLink: document.getElementById('showLoginLink'),
         showRegisterLink: document.getElementById('showRegisterLink'),
         alertBox: document.getElementById('alertBox'),
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         authLogs: document.getElementById('authLogs'),
         securityMessage: document.getElementById('securityMessage'),
         riskLevel: document.getElementById('riskLevel'),
-        otpPanel: document.getElementById('otpPanel'),
+        otpPanel: document.getElementById('otpPanel') || console.error('OTP panel not found'),
         otpDestination: document.getElementById('otpDestination'),
         otpTimer: document.getElementById('otpTimer'),
         otpInput: document.getElementById('otpInput'),
@@ -39,10 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let otpTimerInterval;
     let resendCountdownInterval;
 
+    // Add this check at the start of your DOMContentLoaded callback
+    if (!elements.loginPanel || !elements.registerPanel || !elements.otpPanel || !elements.dashboard) {
+        console.error('Critical elements are missing from the page');
+        return;
+    }
+
     // Panel switching functions
     function showLoginPanel() {
         elements.registerPanel.style.display = 'none';
         elements.loginPanel.style.display = 'block';
+        elements.otpPanel.style.display = 'none';
         elements.dashboard.style.display = 'none';
         elements.alertBox.style.display = 'none';
     }
@@ -50,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showRegisterPanel() {
         elements.registerPanel.style.display = 'block';
         elements.loginPanel.style.display = 'none';
+        elements.otpPanel.style.display = 'none';
         elements.dashboard.style.display = 'none';
         elements.alertBox.style.display = 'none';
     }
@@ -57,6 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDashboard() {
         elements.registerPanel.style.display = 'none';
         elements.loginPanel.style.display = 'none';
+        elements.otpPanel.style.display = 'none';
         elements.dashboard.style.display = 'block';
     }
 
@@ -151,16 +160,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const badgeId = elements.username.value.trim();
         const password = elements.password.value;
 
+        console.log('Login attempt for:', badgeId); // Debug log
+
         if (!badgeId || !password) {
             showAlert('Please fill in all fields');
             return;
         }
 
         const result = auth.login(badgeId, password);
+        console.log('Login result:', result); // Debug log
+
         if (result.success) {
+            console.log('Login successful, initiating OTP'); // Debug log
             currentUser = badgeId;
             initiateOTPVerification(badgeId);
         } else {
+            console.log('Login failed'); // Debug log
             security.logAuthEvent(badgeId, false, 'Failed login attempt');
             if (auth.users[badgeId]) {
                 userProfile.updateOnFailure(badgeId);
@@ -379,6 +394,26 @@ document.addEventListener('DOMContentLoaded', () => {
         showLoginPanel();
     });
 
-    // Initialize the application by showing login panel
-    showLoginPanel();
+    // Update the initApp function at the end of your DOMContentLoaded event listener
+    function initApp() {
+        // Clear any existing sessions
+        currentUser = null;
+        clearInterval(otpTimerInterval);
+        clearInterval(resendCountdownInterval);
+        
+        // Reset form fields
+        elements.username.value = '';
+        elements.password.value = '';
+        elements.otpInput.value = '';
+        
+        // Set initial display states explicitly
+        elements.registerPanel.style.display = 'none';  // Hide register panel
+        elements.loginPanel.style.display = 'block';    // Show login panel
+        elements.otpPanel.style.display = 'none';       // Hide OTP panel
+        elements.dashboard.style.display = 'none';      // Hide dashboard
+        elements.alertBox.style.display = 'none';       // Hide alert box
+    }
+
+    // Initialize the application
+    initApp();
 }); 

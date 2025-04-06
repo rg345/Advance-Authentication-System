@@ -153,6 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.password.value = '';
             
             showDashboard();
+            displayAuthLogs();
             startLogoutTimer(riskAssessment.recommendedTimeout);
         } else {
             security.logAuthEvent(badgeId, false, 'Failed login attempt');
@@ -167,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('logoutBtn').addEventListener('click', () => {
         clearInterval(window.logoutTimer);
         security.logAuthEvent(elements.userBadge.textContent, true, 'User logged out');
+        displayAuthLogs();
         showLoginPanel();
     });
 
@@ -202,6 +204,38 @@ document.addEventListener('DOMContentLoaded', () => {
             timeLeft = Math.min(timeLeft + 30, maxTime);
             elements.timer.textContent = timeLeft;
         }
+    }
+
+    // Add this function after the resetInactivityTimer function and before the initialization
+    function displayAuthLogs() {
+        const userLogs = security.authLogs.filter(log => log.badgeId === elements.userBadge.textContent);
+        const recentLogs = userLogs.slice(0, 5); // Get 5 most recent logs
+        
+        elements.authLogs.innerHTML = ''; // Clear existing logs
+        
+        if (recentLogs.length === 0) {
+            elements.authLogs.innerHTML = '<p>No recent activity</p>';
+            return;
+        }
+        
+        recentLogs.forEach(log => {
+            const logEntry = document.createElement('div');
+            
+            // Set class based on log type
+            if (!log.success) {
+                logEntry.className = 'log-entry failure';
+            } else if (log.riskLevel === 'high') {
+                logEntry.className = 'log-entry warning';
+            } else {
+                logEntry.className = 'log-entry success';
+            }
+            
+            const date = new Date(log.timestamp);
+            const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+            
+            logEntry.textContent = `${formattedDate} - ${log.message}`;
+            elements.authLogs.appendChild(logEntry);
+        });
     }
 
     // Initialize the application by showing login panel

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Police Authentication System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Secure Police Authentication System</h1>
+        
+        <div id="alertBox" class="alert"></div>
+
+        <div id="registerPanel" class="register-panel">
+            <h2>Register New User</h2>
+            <div class="form-group">
+                <label for="newUsername">Badge ID:</label>
+                <input type="text" id="newUsername" placeholder="Enter your badge ID">
+            </div>
+            <div class="form-group">
+                <label for="newPassword">Password:</label>
+                <input type="password" id="newPassword" placeholder="Create a strong password">
+                <div id="passwordStrength" class="password-strength"></div>
+            </div>
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password:</label>
+                <input type="password" id="confirmPassword" placeholder="Confirm your password">
+            </div>
+            <button id="registerBtn">Register</button>
+            <p>Already have an account? <a href="#" id="showLoginLink">Login</a></p>
+        </div>
+
+        <div id="loginPanel" class="login-panel">
+            <h2>Login</h2>
+            <div class="form-group">
+                <label for="username">Badge ID:</label>
+                <input type="text" id="username" placeholder="Enter your badge ID">
+            </div>
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" placeholder="Enter your password">
+            </div>
+            <button id="loginBtn">Login</button>
+            <p>Don't have an account? <a href="#" id="showRegisterLink">Register</a></p>
+        </div>
+
+        <div id="dashboard" class="dashboard">
+            <div class="logout-timer">Session expires in: <span id="timer">300</span> seconds</div>
+            <h2>Welcome, <span id="userBadge"></span>!</h2>
+            <p>You are now securely logged into the system.</p>
+            
+            <div id="securityInsights" class="security-insights">
+                <h3>Security Status <span id="riskLevel" class="risk-indicator risk-low">Low Risk</span></h3>
+                <p id="securityMessage">Your login patterns appear normal. Session timeout set to standard duration.</p>
+            </div>
+
+            <h3>Recent Authentication Logs</h3>
+            <div id="authLogs"></div>
+            
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </div>
+
+    <script src="auth.js"></script>
+    <script src="userProfile.js"></script>
+    <script src="security.js"></script>
+    <script src="app.js"></script>
+</body>
+</html> 

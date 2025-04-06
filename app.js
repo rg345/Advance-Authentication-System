@@ -21,8 +21,23 @@ document.addEventListener('DOMContentLoaded', () => {
         passwordStrength: document.getElementById('passwordStrength'),
         userBadge: document.getElementById('userBadge'),
         timer: document.getElementById('timer'),
-        authLogs: document.getElementById('authLogs')
+        authLogs: document.getElementById('authLogs'),
+        securityMessage: document.getElementById('securityMessage'),
+        riskLevel: document.getElementById('riskLevel'),
+        otpPanel: document.getElementById('otpPanel'),
+        otpDestination: document.getElementById('otpDestination'),
+        otpTimer: document.getElementById('otpTimer'),
+        otpInput: document.getElementById('otpInput'),
+        resendCountdown: document.getElementById('resendCountdown'),
+        resendOtpBtn: document.getElementById('resendOtpBtn'),
+        verifyOtpBtn: document.getElementById('verifyOtpBtn'),
+        backToLoginBtn: document.getElementById('backToLoginBtn')
     };
+
+    // Add these variables at the top of your DOMContentLoaded callback
+    let currentUser = null;
+    let otpTimerInterval;
+    let resendCountdownInterval;
 
     // Panel switching functions
     function showLoginPanel() {
@@ -142,19 +157,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const result = auth.login(badgeId, password);
         if (result.success) {
-            const loginTime = new Date();
-            const riskAssessment = security.assessLoginRisk(badgeId, loginTime, userProfile.userProfiles[badgeId]);
-            
-            security.logAuthEvent(badgeId, true, 'Successful login', riskAssessment.risk);
-            userProfile.updateOnSuccess(badgeId, loginTime, riskAssessment);
-            
-            elements.userBadge.textContent = badgeId;
-            elements.username.value = '';
-            elements.password.value = '';
-            
-            showDashboard();
-            displayAuthLogs();
-            startLogoutTimer(riskAssessment.recommendedTimeout);
+            currentUser = badgeId;
+            initiateOTPVerification(badgeId);
         } else {
             security.logAuthEvent(badgeId, false, 'Failed login attempt');
             if (auth.users[badgeId]) {
@@ -237,6 +241,137 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.authLogs.appendChild(logEntry);
         });
     }
+
+    // Add this function to display security insights
+    function updateSecurityInsights(badgeId, riskAssessment) {
+        const securityMessage = document.getElementById('securityMessage');
+        const riskLevel = document.getElementById('riskLevel');
+        
+        // Update risk indicator
+        riskLevel.textContent = `${riskAssessment.risk.charAt(0).toUpperCase() + riskAssessment.risk.slice(1)} Risk`;
+        riskLevel.className = `risk-indicator risk-${riskAssessment.risk}`;
+        
+        // Create insights message
+        let message = `${riskAssessment.reason}. `;
+        if (riskAssessment.insights && riskAssessment.insights.length > 0) {
+            message += 'Detected patterns: ' + riskAssessment.insights.join(', ') + '. ';
+        }
+        message += `Session timeout set to ${Math.floor(riskAssessment.recommendedTimeout / 60)} minutes.`;
+        
+        securityMessage.textContent = message;
+    }
+
+    // Add these new functions
+    function initiateOTPVerification(badgeId) {
+        const otpInfo = auth.sendOTP(badgeId);
+        document.getElementById('otpDestination').textContent = 
+            `${otpInfo.verificationMethod} (${otpInfo.contactInfo})`;
+        
+        elements.loginPanel.style.display = 'none';
+        elements.otpPanel.style.display = 'block';
+        
+        startOTPTimer();
+        startResendCountdown();
+    }
+
+    function startOTPTimer() {
+        clearInterval(otpTimerInterval);
+        let timeLeft = 180; // 3 minutes
+        
+        const otpTimerSpan = document.getElementById('otpTimer');
+        otpTimerSpan.textContent = timeLeft;
+        
+        otpTimerInterval = setInterval(() => {
+            timeLeft--;
+            otpTimerSpan.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(otpTimerInterval);
+                showAlert('Verification code expired. Please request a new one.');
+            }
+        }, 1000);
+    }
+
+    function startResendCountdown() {
+        clearInterval(resendCountdownInterval);
+        let timeLeft = 60; // 1 minute
+        
+        const resendBtn = document.getElementById('resendOtpBtn');
+        const countdownSpan = document.getElementById('resendCountdown');
+        
+        resendBtn.disabled = true;
+        countdownSpan.textContent = `(available in ${timeLeft}s)`;
+        
+        resendCountdownInterval = setInterval(() => {
+            timeLeft--;
+            countdownSpan.textContent = `(available in ${timeLeft}s)`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(resendCountdownInterval);
+                resendBtn.disabled = false;
+                countdownSpan.textContent = '';
+            }
+        }, 1000);
+    }
+
+    // Add event listeners for OTP functionality
+    document.getElementById('verifyOtpBtn').addEventListener('click', () => {
+        const enteredOTP = document.getElementById('otpInput').value.trim();
+        
+        if (!enteredOTP) {
+            showAlert('Please enter the verification code');
+            return;
+        }
+        
+        const result = auth.verifyOTP(currentUser, enteredOTP);
+        if (result.success) {
+            clearInterval(otpTimerInterval);
+            clearInterval(resendCountdownInterval);
+            
+            const loginTime = new Date();
+            const riskAssessment = security.assessLoginRisk(currentUser, loginTime);
+            
+            security.logAuthEvent(currentUser, true, 'Successful login with 2FA', riskAssessment.risk);
+            userProfile.updateOnSuccess(currentUser, loginTime, riskAssessment);
+            
+            elements.userBadge.textContent = currentUser;
+            elements.username.value = '';
+            elements.password.value = '';
+            document.getElementById('otpInput').value = '';
+            
+            elements.otpPanel.style.display = 'none';
+            showDashboard();
+            updateSecurityInsights(currentUser, riskAssessment);
+            displayAuthLogs();
+            startLogoutTimer(riskAssessment.recommendedTimeout);
+        } else {
+            if (result.blocked) {
+                showAlert(result.message);
+                setTimeout(() => {
+                    elements.otpPanel.style.display = 'none';
+                    elements.loginPanel.style.display = 'block';
+                }, 2000);
+            } else {
+                showAlert(result.message);
+            }
+        }
+    });
+
+    document.getElementById('resendOtpBtn').addEventListener('click', () => {
+        if (currentUser) {
+            initiateOTPVerification(currentUser);
+            showAlert('A new verification code has been sent', 'success');
+        }
+    });
+
+    document.getElementById('backToLoginBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        clearInterval(otpTimerInterval);
+        clearInterval(resendCountdownInterval);
+        currentUser = null;
+        document.getElementById('otpInput').value = '';
+        showLoginPanel();
+    });
 
     // Initialize the application by showing login panel
     showLoginPanel();

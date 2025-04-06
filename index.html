@@ -45,6 +45,24 @@
             <p>Don't have an account? <a href="#" id="showRegisterLink">Register</a></p>
         </div>
 
+        <div id="otpPanel" class="login-panel" style="display: none;">
+            <h2>Two-Factor Authentication</h2>
+            <p>A verification code has been sent to your <span id="otpDestination"></span></p>
+            <div class="form-group">
+                <label for="otpInput">Enter Verification Code:</label>
+                <input type="text" id="otpInput" placeholder="Enter 6-digit code">
+            </div>
+            <div class="timer-info">
+                Code expires in: <span id="otpTimer">180</span> seconds
+            </div>
+            <button id="verifyOtpBtn">Verify Code</button>
+            <div class="resend-section">
+                <button id="resendOtpBtn" disabled>Resend Code</button>
+                <span id="resendCountdown"></span>
+            </div>
+            <p><a href="#" id="backToLoginBtn">Back to Login</a></p>
+        </div>
+
         <div id="dashboard" class="dashboard">
             <div class="logout-timer">Session expires in: <span id="timer">300</span> seconds</div>
             <h2>Welcome, <span id="userBadge"></span>!</h2>

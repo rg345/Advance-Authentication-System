@@ -26,17 +26,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Panel switching functions
     function showLoginPanel() {
-        elements.registerPanel.style.display = 'none';
-        elements.loginPanel.style.display = 'block';
-        elements.dashboard.style.display = 'none';
-        elements.alertBox.style.display = 'none';
+        console.log('Showing login panel'); // Debug log
+        if (elements.registerPanel && elements.loginPanel) {
+            elements.registerPanel.style.display = 'none';
+            elements.loginPanel.style.display = 'block';
+            elements.dashboard.style.display = 'none';
+            elements.alertBox.style.display = 'none';
+        } else {
+            console.error('Panel elements not found');
+        }
     }
 
     function showRegisterPanel() {
-        elements.registerPanel.style.display = 'block';
-        elements.loginPanel.style.display = 'none';
-        elements.dashboard.style.display = 'none';
-        elements.alertBox.style.display = 'none';
+        console.log('Showing register panel'); // Debug log
+        if (elements.registerPanel && elements.loginPanel) {
+            elements.registerPanel.style.display = 'block';
+            elements.loginPanel.style.display = 'none';
+            elements.dashboard.style.display = 'none';
+            elements.alertBox.style.display = 'none';
+        } else {
+            console.error('Panel elements not found');
+        }
     }
 
     function showDashboard() {
@@ -48,11 +58,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Event listeners for panel switching
     elements.showLoginLink.addEventListener('click', (e) => {
         e.preventDefault();
+        console.log('Switching to login panel'); // Debug log
         showLoginPanel();
     });
 
     elements.showRegisterLink.addEventListener('click', (e) => {
         e.preventDefault();
+        console.log('Switching to register panel'); // Debug log
         showRegisterPanel();
     });
 
@@ -93,6 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Register handler
     document.getElementById('registerBtn').addEventListener('click', () => {
+        console.log('Register button clicked'); // Debug log
         const badgeId = elements.newUsername.value.trim();
         const password = elements.newPassword.value;
         const confirmPassword = elements.confirmPassword.value;
@@ -113,6 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const result = auth.registerUser(badgeId, password);
+        console.log('Registration result:', result); // Debug log
+
         if (result.success) {
             userProfile.initializeProfile(badgeId);
             security.logAuthEvent(badgeId, true, 'Registration successful');
@@ -124,7 +139,10 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.confirmPassword.value = '';
             elements.passwordStrength.textContent = '';
             
-            showLoginPanel();
+            // Add delay before switching panels
+            setTimeout(() => {
+                showLoginPanel();
+            }, 1000);
         } else {
             showAlert(result.message);
         }
@@ -238,6 +256,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Make sure initialization is correct at the end of your DOMContentLoaded event
     // Initialize the application by showing login panel
-    showLoginPanel();
+    function initApp() {
+        console.log('Initializing application'); // Debug log
+        // Show login panel by default
+        elements.registerPanel.style.display = 'none';
+        elements.loginPanel.style.display = 'block';
+        elements.dashboard.style.display = 'none';
+        elements.alertBox.style.display = 'none';
+    }
+
+    // Call initialization
+    initApp();
 }); 

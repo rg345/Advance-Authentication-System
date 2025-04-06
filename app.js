@@ -6,9 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize DOM elements
     const elements = {
-        registerPanel: document.getElementById('registerPanel') || console.error('Register panel not found'),
-        loginPanel: document.getElementById('loginPanel') || console.error('Login panel not found'),
-        dashboard: document.getElementById('dashboard') || console.error('Dashboard not found'),
+        registerPanel: document.getElementById('registerPanel'),
+        loginPanel: document.getElementById('loginPanel'),
+        dashboard: document.getElementById('dashboard'),
         showLoginLink: document.getElementById('showLoginLink'),
         showRegisterLink: document.getElementById('showRegisterLink'),
         alertBox: document.getElementById('alertBox'),
@@ -22,28 +22,27 @@ document.addEventListener('DOMContentLoaded', () => {
         userBadge: document.getElementById('userBadge'),
         timer: document.getElementById('timer'),
         authLogs: document.getElementById('authLogs'),
-        securityMessage: document.getElementById('securityMessage'),
-        riskLevel: document.getElementById('riskLevel'),
-        otpPanel: document.getElementById('otpPanel') || console.error('OTP panel not found'),
-        otpDestination: document.getElementById('otpDestination'),
-        otpTimer: document.getElementById('otpTimer'),
+        // Add new OTP elements
+        otpPanel: document.getElementById('otpPanel'),
         otpInput: document.getElementById('otpInput'),
-        resendCountdown: document.getElementById('resendCountdown'),
-        resendOtpBtn: document.getElementById('resendOtpBtn'),
+        otpDestination: document.getElementById('otpDestination'),
         verifyOtpBtn: document.getElementById('verifyOtpBtn'),
-        backToLoginBtn: document.getElementById('backToLoginBtn')
+        resendOtpBtn: document.getElementById('resendOtpBtn'),
+        otpTimer: document.getElementById('otpTimer'),
+        resendCountdown: document.getElementById('resendCountdown'),
+        backToLoginBtn: document.getElementById('backToLoginBtn'),
+        // Add email/phone elements
+        emailField: document.getElementById('emailField'),
+        phoneField: document.getElementById('phoneField'),
+        emailInput: document.getElementById('email'),
+        phoneInput: document.getElementById('phone'),
     };
 
-    // Add these variables at the top of your DOMContentLoaded callback
+    // Add these variables at the top level of your DOMContentLoaded callback
     let currentUser = null;
+    let otpData = {};
     let otpTimerInterval;
     let resendCountdownInterval;
-
-    // Add this check at the start of your DOMContentLoaded callback
-    if (!elements.loginPanel || !elements.registerPanel || !elements.otpPanel || !elements.dashboard) {
-        console.error('Critical elements are missing from the page');
-        return;
-    }
 
     // Panel switching functions
     function showLoginPanel() {
@@ -57,7 +56,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function showRegisterPanel() {
         elements.registerPanel.style.display = 'block';
         elements.loginPanel.style.display = 'none';
-        elements.otpPanel.style.display = 'none';
         elements.dashboard.style.display = 'none';
         elements.alertBox.style.display = 'none';
     }
@@ -65,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function showDashboard() {
         elements.registerPanel.style.display = 'none';
         elements.loginPanel.style.display = 'none';
-        elements.otpPanel.style.display = 'none';
         elements.dashboard.style.display = 'block';
     }
 
@@ -136,8 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // For demo purposes, using default email
-        const result = auth.registerUser(badgeId, password, 'email', `${badgeId}@police.gov`);
+        const result = auth.registerUser(badgeId, password);
         if (result.success) {
             userProfile.initializeProfile(badgeId);
             security.logAuthEvent(badgeId, true, 'Registration successful');
@@ -160,28 +156,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const badgeId = elements.username.value.trim();
         const password = elements.password.value;
 
-        console.log('Login attempt for:', badgeId); // Debug log
-
         if (!badgeId || !password) {
             showAlert('Please fill in all fields');
             return;
         }
 
-        const result = auth.login(badgeId, password);
-        console.log('Login result:', result); // Debug log
-
-        if (result.success) {
-            console.log('Login successful, initiating OTP'); // Debug log
-            currentUser = badgeId;
-            initiateOTPVerification(badgeId);
-        } else {
-            console.log('Login failed'); // Debug log
+        if (!auth.users[badgeId] || auth.users[badgeId].password !== auth.hashPassword(password)) {
             security.logAuthEvent(badgeId, false, 'Failed login attempt');
             if (auth.users[badgeId]) {
                 userProfile.updateOnFailure(badgeId);
             }
             showAlert('Invalid badge ID or password');
+            return;
         }
+
+        currentUser = badgeId;
+        sendOTP(badgeId);
     });
 
     // Logout handler
@@ -334,8 +324,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('verifyOtpBtn').addEventListener('click', () => {
         const enteredOTP = elements.otpInput.value.trim();
         
-        if (!currentUser) {
-            showAlert('Session expired. Please login again');
+        if (!currentUser || !otpData[currentUser]) {
+            showAlert('Authentication error. Please try again');
             showLoginPanel();
             return;
         }
@@ -345,42 +335,51 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        const result = auth.verifyOTP(currentUser, enteredOTP);
-        if (result.success) {
-            clearInterval(otpTimerInterval);
-            clearInterval(resendCountdownInterval);
-            
-            const loginTime = new Date();
-            const riskAssessment = security.assessLoginRisk(currentUser, loginTime);
-            
-            security.logAuthEvent(currentUser, true, 'Successful login with 2FA', riskAssessment.risk);
-            userProfile.updateOnSuccess(currentUser, loginTime, riskAssessment);
-            
-            elements.userBadge.textContent = currentUser;
-            elements.username.value = '';
-            elements.password.value = '';
-            elements.otpInput.value = '';
-            
-            elements.otpPanel.style.display = 'none';
-            showDashboard();
-            updateSecurityInsights(currentUser, riskAssessment);
-            displayAuthLogs();
-            startLogoutTimer(riskAssessment.recommendedTimeout);
-        } else {
-            if (result.blocked) {
-                showAlert(result.message);
-                setTimeout(() => {
-                    showLoginPanel();
-                }, 2000);
-            } else {
-                showAlert(result.message);
-            }
+        const otpInfo = otpData[currentUser];
+        
+        if (Date.now() > otpInfo.expiry) {
+            showAlert('Verification code has expired. Please request a new one');
+            return;
         }
+        
+        if (enteredOTP !== otpInfo.code) {
+            otpInfo.attempts++;
+            if (otpInfo.attempts >= 3) {
+                security.logAuthEvent(currentUser, false, 'Multiple failed OTP attempts', 'high');
+                userProfile.updateOnFailure(currentUser);
+                showAlert('Too many incorrect attempts. Please try again later');
+                setTimeout(showLoginPanel, 2000);
+            } else {
+                security.logAuthEvent(currentUser, false, 'Failed OTP verification attempt', 'medium');
+                showAlert(`Incorrect code. ${3 - otpInfo.attempts} attempts remaining`);
+            }
+            return;
+        }
+        
+        clearInterval(otpTimerInterval);
+        clearInterval(resendCountdownInterval);
+        
+        const loginTime = new Date();
+        const riskAssessment = security.assessLoginRisk(currentUser, loginTime);
+        
+        security.logAuthEvent(currentUser, true, 'Successful login with 2FA', riskAssessment.risk);
+        userProfile.updateOnSuccess(currentUser, loginTime, riskAssessment);
+        
+        delete otpData[currentUser];
+        elements.otpInput.value = '';
+        elements.userBadge.textContent = currentUser;
+        elements.username.value = '';
+        elements.password.value = '';
+        
+        elements.otpPanel.style.display = 'none';
+        showDashboard();
+        displayAuthLogs();
+        startLogoutTimer(riskAssessment.recommendedTimeout);
     });
 
     document.getElementById('resendOtpBtn').addEventListener('click', () => {
         if (currentUser) {
-            initiateOTPVerification(currentUser);
+            sendOTP(currentUser);
             showAlert('A new verification code has been sent', 'success');
         }
     });
@@ -390,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clearInterval(otpTimerInterval);
         clearInterval(resendCountdownInterval);
         currentUser = null;
-        document.getElementById('otpInput').value = '';
+        elements.otpInput.value = '';
         showLoginPanel();
     });
 
@@ -416,4 +415,89 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize the application
     initApp();
+
+    // Add these functions after your existing functions
+
+    function generateOTP() {
+        return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    function maskEmail(email) {
+        const [username, domain] = email.split('@');
+        const maskedUsername = username[0] + '*'.repeat(username.length - 2) + username[username.length - 1];
+        return `${maskedUsername}@${domain}`;
+    }
+
+    function maskPhone(phone) {
+        return '*'.repeat(phone.length - 4) + phone.slice(-4);
+    }
+
+    function sendOTP(badgeId) {
+        const user = auth.users[badgeId];
+        const otp = generateOTP();
+        const expiryTime = new Date();
+        expiryTime.setMinutes(expiryTime.getMinutes() + 3);
+
+        otpData[badgeId] = {
+            code: otp,
+            expiry: expiryTime.getTime(),
+            attempts: 0
+        };
+
+        // Show where OTP was sent
+        let maskedDestination;
+        if (user.verificationMethod === 'email') {
+            maskedDestination = maskEmail(user.contactInfo);
+            elements.otpDestination.textContent = `email (${maskedDestination})`;
+        } else {
+            maskedDestination = maskPhone(user.contactInfo);
+            elements.otpDestination.textContent = `phone (${maskedDestination})`;
+        }
+
+        console.log(`OTP for ${badgeId}: ${otp}`); // For demonstration
+        security.logAuthEvent(badgeId, true, 'OTP requested', 'low');
+
+        elements.loginPanel.style.display = 'none';
+        elements.otpPanel.style.display = 'block';
+
+        startOTPTimer();
+        startResendCountdown();
+    }
+
+    function startOTPTimer() {
+        clearInterval(otpTimerInterval);
+        let timeLeft = 180; // 3 minutes
+        elements.otpTimer.textContent = timeLeft;
+        
+        otpTimerInterval = setInterval(() => {
+            timeLeft--;
+            elements.otpTimer.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(otpTimerInterval);
+                if (currentUser && otpData[currentUser]) {
+                    otpData[currentUser].expiry = 0;
+                }
+                showAlert('Verification code expired. Please request a new one.');
+            }
+        }, 1000);
+    }
+
+    function startResendCountdown() {
+        clearInterval(resendCountdownInterval);
+        let timeLeft = 60;
+        elements.resendOtpBtn.disabled = true;
+        elements.resendCountdown.textContent = `(available in ${timeLeft}s)`;
+        
+        resendCountdownInterval = setInterval(() => {
+            timeLeft--;
+            elements.resendCountdown.textContent = `(available in ${timeLeft}s)`;
+            
+            if (timeLeft <= 0) {
+                clearInterval(resendCountdownInterval);
+                elements.resendOtpBtn.disabled = false;
+                elements.resendCountdown.textContent = '';
+            }
+        }, 1000);
+    }
 }); 

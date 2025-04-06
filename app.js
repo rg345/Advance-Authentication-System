@@ -127,7 +127,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const result = auth.registerUser(badgeId, password);
+        // For demo purposes, using default email
+        const result = auth.registerUser(badgeId, password, 'email', `${badgeId}@police.gov`);
         if (result.success) {
             userProfile.initializeProfile(badgeId);
             security.logAuthEvent(badgeId, true, 'Registration successful');
@@ -264,11 +265,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add these new functions
     function initiateOTPVerification(badgeId) {
         const otpInfo = auth.sendOTP(badgeId);
-        document.getElementById('otpDestination').textContent = 
-            `${otpInfo.verificationMethod} (${otpInfo.contactInfo})`;
+        elements.otpDestination.textContent = `${otpInfo.verificationMethod} (${otpInfo.contactInfo})`;
         
         elements.loginPanel.style.display = 'none';
         elements.otpPanel.style.display = 'block';
+        elements.dashboard.style.display = 'none';
         
         startOTPTimer();
         startResendCountdown();
@@ -314,9 +315,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 
-    // Add event listeners for OTP functionality
+    // Verify OTP handler
     document.getElementById('verifyOtpBtn').addEventListener('click', () => {
-        const enteredOTP = document.getElementById('otpInput').value.trim();
+        const enteredOTP = elements.otpInput.value.trim();
+        
+        if (!currentUser) {
+            showAlert('Session expired. Please login again');
+            showLoginPanel();
+            return;
+        }
         
         if (!enteredOTP) {
             showAlert('Please enter the verification code');
@@ -337,7 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.userBadge.textContent = currentUser;
             elements.username.value = '';
             elements.password.value = '';
-            document.getElementById('otpInput').value = '';
+            elements.otpInput.value = '';
             
             elements.otpPanel.style.display = 'none';
             showDashboard();
@@ -348,8 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (result.blocked) {
                 showAlert(result.message);
                 setTimeout(() => {
-                    elements.otpPanel.style.display = 'none';
-                    elements.loginPanel.style.display = 'block';
+                    showLoginPanel();
                 }, 2000);
             } else {
                 showAlert(result.message);

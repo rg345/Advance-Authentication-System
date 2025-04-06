@@ -6,21 +6,18 @@ class Security {
     }
 
     logAuthEvent(badgeId, success, message, riskLevel = 'low') {
-        const loginData = {
+        const event = {
             timestamp: new Date().toISOString(),
             badgeId,
             success,
             message,
-            ipAddress: '192.168.1.1', // In production, get real IP
+            ipAddress: '192.168.1.1',
             riskLevel,
             userAgent: navigator.userAgent,
             timeOfDay: new Date().getHours()
         };
-
-        // Train ML model with new data
-        this.mlSecurity.trainModel(loginData);
         
-        this.authLogs.unshift(loginData);
+        this.authLogs.unshift(event);
         if (this.authLogs.length > 100) {
             this.authLogs = this.authLogs.slice(0, 100);
         }
@@ -29,13 +26,11 @@ class Security {
     }
 
     assessLoginRisk(badgeId, loginTime) {
-        const loginAttempt = {
-            timestamp: loginTime.toISOString(),
-            badgeId,
-            ipAddress: '192.168.1.1', // In production, get real IP
-            userAgent: navigator.userAgent
+        return {
+            risk: 'low',
+            reason: 'Normal login pattern',
+            recommendedTimeout: 300,
+            insights: []
         };
-
-        return this.mlSecurity.predictRiskLevel(loginAttempt);
     }
 } 

@@ -29,14 +29,16 @@ class Auth {
         return 'strong';
     }
 
-    registerUser(badgeId, password) {
+    registerUser(badgeId, password, verificationMethod = 'email', contactInfo = 'default@example.com') {
         if (this.users[badgeId]) {
             return { success: false, message: 'Badge ID already registered' };
         }
 
         this.users[badgeId] = {
             password: this.hashPassword(password),
-            registeredOn: new Date().toISOString()
+            registeredOn: new Date().toISOString(),
+            verificationMethod: verificationMethod,
+            contactInfo: contactInfo
         };
 
         localStorage.setItem('users', JSON.stringify(this.users));
